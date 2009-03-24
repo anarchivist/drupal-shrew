@@ -1,0 +1,40 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ */
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function shrew_uninstall() {
+  variable_del('shrew_webpac_location');
+}
+
+/**
+ * Implementation of hook_requirements().
+ */
+function shrew_requirements($phase) {
+  $requirements = array();
+  // Ensure translations don't break at install time.
+  $t = get_t();
+  
+  switch ($phase) {
+    case 'runtime':
+      $requirements['shrew'] = array('title' => $t('shrew library'));
+      
+      $library = shrew_get_library();
+      if (file_exists($library)) {
+        shrew_require();
+        $requirements['shrew']['severity'] = REQUIREMENT_OK;
+      }
+      
+      else {
+        $requirements['shrew']['description'] = $t('The <a href="@url" target="_blank">Shrew</a> library was not found.', array('@url' => 'http://code.google.com/p/shrew/'));
+        $requirements['shrew']['severity'] = REQUIREMENT_WARNING;
+        $requirements['shrew']['value'] =  $t('Not installed.');
+      }
+  }
+  return $requirements;
+}
