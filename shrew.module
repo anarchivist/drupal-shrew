@@ -59,7 +59,7 @@ function shrew_set_webpac_location($location) {
 }
 
 function shrew_get_webpac_location() {
-  return variable_get('shrew_webpac_location');
+  return variable_get('shrew_webpac_location', NULL);
 }
 
 function shrew_require($once = TRUE) {
@@ -85,18 +85,18 @@ function shrew_require($once = TRUE) {
  * @return
  *   Instance of shrew.
  */
-function shrew_init($webpac_location) {
+function shrew_init() {
   static $shrew = NULL;
   
   shrew_require();
-  
-  if ($webpac_location) {
-    $shrew = new InnopacWeb($webpac_location);
+  $loc = shrew_get_webpac_location();
+  if ($loc != NULL) {
+    $shrew = new InnopacWeb($loc);
+    return $shrew;
   }
   else {
-    $shrew = new InnopacWeb(shrew_get_webpac_location());
-  }  
-  return $shrew;
+      
+  }
 }
 
 
@@ -116,7 +116,7 @@ function shrew_get($shrewinstance, $id) {
   if (count($response) > 0) {
     foreach ($response as $record) {
       $record->bibliographicRecord->formatOutput = true;
-      $out[] = array('record'=>$record->bibliographicRecord->saveXML(), 'items'=>$record->items);
+      $out[] = $record;
     }
   }  
   return $out;
