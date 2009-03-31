@@ -31,7 +31,7 @@ function shrew_requirements($phase) {
       }
       
       else {
-        $requirements['shrew']['description'] = $t('The <a href="@url" target="_blank">Shrew</a> library was not found.', array('@url' => 'http://code.google.com/p/shrew/'));
+        $requirements['shrew']['description'] = $t('The <a href="@url" target="_blank">Shrew</a> library or the <a href="@marc" target="_blank">File_MARC</a> PEAR module was not found.', array('@url' => 'http://code.google.com/p/shrew/', '@marc' => 'http://pear.php.net/package/File_MARC/'));
         $requirements['shrew']['severity'] = REQUIREMENT_WARNING;
         $requirements['shrew']['value'] =  $t('Not installed.');
       }

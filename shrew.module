@@ -71,9 +71,11 @@ function shrew_require($once = TRUE) {
   
   if ($once) {
     require_once './'. $library;
+    require_once 'File/MARCXML.php';
   }
   else {
     require './'. $library;
+    require 'File/MARCXML.php';
   }
 }
 
@@ -115,9 +117,26 @@ function shrew_get($shrewinstance, $id) {
   $response = $shrewinstance->getRecords($id);
   if (count($response) > 0) {
     foreach ($response as $record) {
-      $record->bibliographicRecord->formatOutput = true;
+      //$record->bibliographicRecord->formatOutput = true;
       $out[] = $record;
     }
   }  
   return $out;
 }
+
+
+/**
+ * Enter description here...
+ *
+ * @param $record
+ *   string Single MARCXML record
+ *
+ * @return
+ *   File_MARC_Record
+ */
+function shrew_record_parse($record) {
+  $obj = new File_MARCXML($record, 2);
+  $mxrecord = $obj->next();
+  return $mxrecord;
+}
+
