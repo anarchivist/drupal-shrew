@@ -93,34 +93,9 @@ function shrew_init() {
   shrew_require();
   $loc = shrew_get_webpac_location();
   if ($loc != NULL) {
-    $shrew = new InnopacWeb($loc);
+    $shrew = new shrewClient($loc);
   }
   return $shrew;
-}
-
-
-/**
- * Enter description here...
- *
- * @param $shrewinstance
- *   ShrewClient object
- * @param $id
- *   string of record IDs
- * @return
- *   array
- */
-function shrew_get($shrewinstance, $id) {
-  $out = array();
-  $response = $shrewinstance->getRecords($id);
-  if (count($response) > 0) {
-    foreach ($response as $r) {
-      $srec = new shrewRecord();
-      $srec->bibliographicRecord = shrew_record_parse($r->bibliographicRecord->saveXML());
-      $srec->items = $r->items;
-      $out[] = $srec;
-    }
-  }
-  return $out;
 }
 
 
@@ -139,6 +114,42 @@ function shrew_record_parse($record) {
   return $mxrecord;
 }
 
+/**
+* 
+*/
+class shrewClient extends InnopacWeb
+{
+  
+  function __construct($strServer)
+  {
+    parent::__construct($strServer);
+  }
+  
+  /**
+   * Enter description here...
+   *
+   * @param $id
+   *   string of record IDs
+ 	 * @param string $schema
+ 	 *   defines the metadata schema in which the records are returned, currently only marc-xml
+   * @return
+   *   array
+   */
+  public function getRecords($id, $schema = 'marc-xml') {
+    $out = array();
+    $response = parent::getRecords($id, $schema);
+    if (count($response) > 0) {
+      foreach ($response as $r) {
+        $srec = new shrewRecord();
+        $xml = $r->bibliographicRecord->saveXML();
+        $srec->bibliographicRecord = shrew_record_parse($xml);
+        $srec->items = $r->items;
+        $out[] = $srec;
+      }
+    }
+    return $out;
+  }
+}
 
 class shrewRecord extends InnopacWeb_Record {
 // public $bibliographicRecord; // File_MARC_Record
