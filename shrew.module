@@ -1,15 +1,17 @@
 <?php
 // $Id$
 
-require_once drupal_get_path('module', 'shrew') .'/lib/InnopacWeb.php';
-require_once('File/MARCXML.php');
-
 /**
  * @file
- *
- * @see http://code.google.com/p/shrew/
+ * shrew.module, which provides hook implementations and core functionality.
+ * Requires the David Walker's
+ * <A HREF="http://code.google.com/p/shrew/">Shrew library</A> and the 
+ * <A HREF="http://pear.php.net/package/File_MARC/">File_MARC</A> PEAR module.
  */
 
+require_once drupal_get_path('module', 'shrew') .'/lib/InnopacWeb.php';
+require_once 'File/MARCXML.php';
+ 
 /**
  * Implementation of hook_help().
  */
@@ -58,6 +60,12 @@ function shrew_get_library() {
  * @param $location
  */
 function shrew_set_webpac_location($location) {
+  
+  if ( substr( $location, strlen( $location ) - 1, 1 ) == "/" )
+	{
+		$location = substr( $location, 0, strlen( $location ) - 1 );
+	}
+	
   variable_set('shrew_webpac_location', $location);
 }
 
@@ -85,7 +93,7 @@ function shrew_require($once = TRUE) {
  * @param $webpac_location
  *   URI for III Webpac instance
  * @return
- *   Instance of shrew.
+ *   Instance of InnopacWeb.
  */
 function shrew_init() {
   static $shrew = NULL;
@@ -93,54 +101,767 @@ function shrew_init() {
   shrew_require();
   $loc = shrew_get_webpac_location();
   if ($loc != NULL) {
-    $shrew = new InnopacWeb($loc);
+    $shrew = new shrewClient($loc);
   }
   return $shrew;
 }
 
+/**
+ * Didn't want to have to do this, but I really should modify all instances
+ * of file_get_contents in Shrew to drupal_http_request
+ */
+class shrewClient extends InnopacWeb {
+  
+	private function shrew_http_request($reqpath) {
+	  $uri = shrew_get_webpac_location() . $reqpath;
+	  $response = drupal_http_request('http://onebigarchives.net/');
+	  print_r($response);
+	  //array_push($this->arrURL, $uri);
+	  if ($response->code != 200) {
+	    // something else went wrong
+			$msg = '%error error on URL %uri.';
+			$vars = array( '%error' => $response->code, '%uri' => $uri );
+			watchdog('shrew', $msg, $vars, WATCHDOG_WARNING);
+		} else {
+		  $msg = '200 OK on URL %uri. Response: %data';
+		  $vars = array( '%error' => $response->code, '%uri' => $uri, '%data' => $response->data);
+			watchdog('shrew', $msg, $vars, WATCHDOG_DEBUG);
+		}
+		return $response;
+	}
+
+	/**
+	 * Given a list of record identifiers, returns a list of record objects that contain
+	 * bibliographic information, as well as associated holdings and item information.
+	 *
+	 * @param string $id			one or more id numbers, seperate multiple ids by space
+	 * @param string $schema		defines the metadata schema in which the records are returned, currently only marc-xml
+	 * @return array				a list of record objects that represents the bibliographic record, as well as
+	 * 								associated holdings and item information for each requested bibliographic identifier
+	 */
+	
+	public function getRecords($id, $schema = 'marc-xml')
+	{
+		$arrResults = array ( ); // results array
+		$x = 0; // counter to keep track of found records
+		$arrIDs = explode( " ", $id ); // ids as array
+		
+		if ( $schema != "marc-xml")
+		{
+			throw new InnopacWeb_UnsupportedSchemaException("marc-xml is the only currently supported schema");
+		}
+
+		foreach ( $arrIDs as $strBibId )
+		{
+			$strResponse = $this->getRecordMarcPage($strBibId);
+			
+			if ( $strResponse != null )
+			{
+				// get record and add to list
+				
+				$objRecord = $this->extractRecord( $strResponse );
+				$arrResults[$strBibId] = $objRecord;
+				
+				// mark it as found
+				$x++;
+			}
+			else
+			{
+				$arrResults[$strBibId] = null;
+			}
+		}
+		
+		if ( $x == 0 )
+		{
+			$this->iTotal = 0;
+			return null;
+		}
+		else
+		{	
+			$this->iTotal = 1;
+			return $arrResults;
+		}
+	}
+
+	### PRIVATE FUNCTIONS ###
+	
+	/**
+	 * Return the MARC record page
+	 *
+	 * @param string $strBibId		bib id
+	 * @return string				URI path
+	 */
+	
+	private function getRecordMarcPage($strBibId)
+	{
+		$strId = substr( $strBibId, 1 );
+		$strQuery = "/search/.$strBibId/.$strBibId/1,1,1,B/detlmarc~$strId&FF=&1,0,";
+		
+    // $strResponse = file_get_contents( $this->strServer . $strQuery );
+    // array_push( $this->arrURL, $this->strServer . $strQuery );
+		$response = $this->shrew_http_request($strQuery);
+		$strResponse = $response->data;
+		
+		// if (!stristr($strResponse, "<pre>"))
+		//    {
+		//      // didn't find a record
+		//      $msg = 'Did not find record %bibid. Response: %rsp';
+		//      $vars = array( '%bibid' => $strBibId, '%rsp' => $strResponse );
+		//      watchdog('shrew', $msg, $vars, WATCHDOG_WARNING);
+		//      return null;
+		//    }
+		if ($response->code != 200)
+		{
+ 			return null; 
+		}
+		else
+		{
+			return $strResponse;
+		}
+	}
+	/**
+	 * Initiate a search using the supplied query
+	 *
+	 * @param string $strIndex		one letter index to search on, this will differ depending on catalog
+	 * @param string $strPhrase		search phrase
+	 * @return int					number of records found
+	 */
+	
+	private function doSearch($strIndex, $strPhrase)
+	{
+		$strQuery = ""; // query part of url
+		$strResponse = ""; // html response from the catalog
+		$arrMatches = array ( ); // regex match holding array
+
+		// set the values into the object property
+
+		$this->strIndex = $strIndex;
+		$this->strPhrase = $strPhrase;
+		
+		// normalize the search phrase for urls
+
+		$this->strNormalized = strtolower( $strPhrase );
+		
+		// browse (i.e., non-keyword) searches require a special set
+		// of normalization rules
+
+		if ( $strIndex != "X" && $strIndex != "Y" )
+		{
+			// replace all non-indexed punctuation with space;
+			// indexed punctuation includes: @ # $ + |
+			// special handling below for: ' & -
+
+			$this->strNormalized = preg_replace( "/[^a-zA-Z0-9 \@\#\$\+\|\&\-\']/", " ", $this->strNormalized );
+			
+			// special cases
+
+			$this->strNormalized = str_replace( "'", "", $this->strNormalized );
+			$this->strNormalized = str_replace( " & ", " and ", $this->strNormalized );
+			
+			// standard numbers should have the dash removed completely
+
+			if ( $strIndex == "i" )
+			{
+				$this->strNormalized = str_replace( "-", "", $this->strNormalized );
+			} 
+			else
+			{
+				$this->strNormalized = str_replace( "-", " ", $this->strNormalized );
+			}
+			
+			// remove leading article for title searches
+			
+			if ( substr( $this->strNormalized, 0, 2 ) == "a " )
+			{
+				$this->strNormalized = substr( $this->strNormalized, 2 );
+			} 
+			elseif ( substr( $this->strNormalized, 0, 3 ) == "an " )
+			{
+				$this->strNormalized = substr( $this->strNormalized, 3 );
+			} 
+			elseif ( substr( $this->strNormalized, 0, 4 ) == "the " )
+			{
+				$this->strNormalized = substr( $this->strNormalized, 4 );
+			}
+			
+			// remove double-spaces
+
+			while ( strstr( $this->strNormalized, "  " ) )
+			{
+				$this->strNormalized = str_replace( "  ", " ", $this->strNormalized );
+			}
+			
+			// convert all accented characters to their latin equivalent
+
+			$this->strNormalized = strtr( $this->strNormalized, "ŠŒŽšœžŸ¥µÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýÿ", "SOZsozYYuAAAAAAACEEEEIIIIDNOOOOOOUUUUYsaaaaaaaceeeeiiiionoooooouuuuyy" );
+			
+			// pad certain occurances of numbers with added spaces: 
+			//    +++++++9 if the search started with a number-space
+			//    ++++9 for any space-number in the search not at the beginning
+
+			$this->strNormalized = preg_replace( "/ ([0-9]{1})/", "++++$1", $this->strNormalized );
+			$this->strNormalized = preg_replace( "/^([0-9]{1}) /", "+++++++$1", $this->strNormalized );
+		}
+		
+		$this->strNormalized = urlencode( $this->strNormalized );
+		
+		// build base url query 
+		
+		$strQuery = "/search/" . $strIndex . "?" . urlencode( $strPhrase );
+		
+		// add limits
+
+		$strQuery .= $this->appendLimits();
+		
+		// get initial search results page
+
+		// $strResponse = file_get_contents( $this->strServer . $strQuery );
+		// array_push( $this->arrURL, $this->strServer . $strQuery );
+		$response = $this->shrew_get_request($strQuery);
+    $strResponse = $response->data;
+		
+		// extract the total number of hits in the results page;
+
+		if ( preg_match( "/Entries<br \/> ([0-9]{1,10}) Found/", $strResponse, $arrMatches ) != 0 )
+		{
+			return $arrMatches[1]; // browse search
+		} 
+		elseif ( preg_match( "/\(1-[0-9]{1,2} of ([0-9]{1,10})\)/", $strResponse, $arrMatches ) != 0 )
+		{
+			return $arrMatches[1]; // keyword search
+		} 
+		elseif ( ! stristr( $strResponse, "No matches found" ) && ! stristr( $strResponse, "NO ENTRIES FOUND" ) )
+		{
+			return 1; // only found one response, catalog jumped right to full display 
+		} 
+		else
+		{
+			return 0;
+		}
+	}
+	
+	/**
+	 * Retrieve records from a previously initiated search
+	 *
+	 * @param int $iStart			starting record in the set to return, defaults to 1
+	 * @param int $iLimit			maximum number of records to return, defaults to 10
+	 * @param string $strSort		[optional] sort order for keyword searches, defaults to date, acceptable values:
+	 * 								- 'D' date
+	 * 								- 'R' rank 
+	 * 								- 'A' alphabetical
+	 * @return array				array of DOMDocuments as MARC-XML
+	 */
+	
+	private function retrieve($iStart, $iLimit, $strSort = "D")
+	{
+		// type check
+
+		if ( ! is_int( $iStart ) )
+		{
+			throw new Exception( "param 1 (start record) must be of type int" );
+		}
+		if ( ! is_int( $iLimit ) )
+		{
+			throw new Exception( "param 2 (limit) must be of type int" );
+		}
+		
+		$arrResults = array ( ); // results array
+
+		if ( $this->iTotal > 0 )
+		{
+			// set the end point in the range
+
+			$iEnd = $iStart + ($iLimit - 1);
+			
+			if ( $iEnd > $this->iTotal )
+			{
+				$iEnd = $this->iTotal;
+			}
+
+			// some adjustments for keyword searches
+
+			if ( $this->strIndex == "X" )
+			{
+				$this->strNormalized = "(" . $this->strNormalized . ")";
+			}			
+			
+			// cycle through the results, pulling back each
+			// record and adding it to the response
+
+			while ( $iStart <= $iEnd )
+			{
+				$strRecord = "";
+				$strResponse = "";
+				$objRecord = new DOMDocument( );
+				
+				// build the url query for each individual record
+
+				$strRecord = "/search?/" . $this->strIndex . $this->strNormalized . "&SORT=" . $strSort . $this->appendLimits() . "/" . $this->strIndex . $this->strNormalized . "&SORT=" . $strSort . $this->appendLimits() . "/" . $iStart . "," . $this->iTotal . "," . $this->iTotal . ",B/detlmarc&FF=" . $this->strIndex . $this->strNormalized . "&SORT=" . $strSort . $this->appendLimits() . "&" . $iStart . "," . $iStart . ",";
+				
+				// get marc display html page from the server
+				// and convert it to XML
+
+        // $strResponse = file_get_contents( $this->strServer . $strRecord );
+        // array_push( $this->arrURL, $this->strServer . $strRecord );
+        $response = $this->shrew_http_request($strRecord);
+        $strResponse = $response->data;
+				
+				$objRecord = $this->extractRecord( $strResponse );
+				
+				// add the document to the results array
+
+				$arrResults[$iStart] = $objRecord;
+				$iStart ++;
+			}
+		}
+		
+		return $arrResults;
+	}
+	
+	/**
+	 * Extracts data from the holdings table in the HTML response
+	 *
+	 * @param string $strHtml		html response from catalog
+	 * @param bool $bolRecursive	[optional] whether this is a recursive call from inside the function
+	 * @return array 				array of Item objects
+	 */
+	
+	private function extractHoldings($strHtml, $bolRecursive = false)
+	{	
+		$bolOrderNote = false; // whether holdings table shows an ordered noted
+		$bolFieldNotes = false; // whether holdings table includes comments indicating item record marc fields
+		
+		// see if there is more than one page of holdings, in which case get the
+		// expanded (holdings) page instead; performance hit, but gotta do it
+		
+		if ( stristr($strHtml, "additional copies") )
+		{
+			if ( $bolRecursive == true )
+			{
+				throw new Exception("recursion error getting additional copies");
+			}
+			
+			$strHoldingsUrl = ""; // uri to full holdings list
+			$arrMatches = array(); // matches from the regex below
+			
+			// get all the post form actions, one of them will be for the 
+			// function that gets the additional items (holdings) page
+			
+			if ( preg_match_all("/<form method=\"post\" action=\"([^\"]*)\"/", $strHtml, $arrMatches, PREG_PATTERN_ORDER))
+			{
+				foreach($arrMatches[1] as $strPostUrl)
+				{
+					if ( stristr($strPostUrl, "/holdings") )
+					{
+						$strHoldingsUrl = $strPostUrl;
+						break;
+					}
+				}
+			}
+			
+			// get the full response page now and redo the function call
+			
+			//$strResponse = file_get_contents($strHoldingsUrl);
+			$response = $this->shrew_http_request($strHoldingsUrl);
+			$strResponse = $response->data;
+			
+			return $this->extractHoldings($strResponse, true);
+		}
+		
+		$strTable = ""; // characters that mark the start of the holding table
+		$arrHoldings = array ( ); // master array we'll used to hold the holdings
+
+		// check to see if there are holdings as well as item records
+		
+		if ( strpos( $strHtml, "class=\"bibHoldings\">" ) !== false )
+		{
+			// do something!
+			
+			return null;
+		}
+		
+		// look to see which template this is and adjust the 
+		// parser to accomadate the html structure
+
+		if ( strpos( $strHtml, "class=\"bibItems\">" ) !== false )
+		{
+			// most library innopac systems
+			$strTable = "class=\"bibItems\">";
+		} 
+		elseif ( strpos( $strHtml, "BGCOLOR=#DDEEFF>" ) !== false )
+		{
+			// old innreach system
+			$strTable = "BGCOLOR=#DDEEFF>";
+		} 
+		elseif ( strpos( $strHtml, "centralHolding" ) !== false )
+		{
+			// newer innreach system
+			$strTable = "centralHolding";
+		} 
+		elseif ( strpos( $strHtml, "class=\"bibOrder" ) !== false )
+		{
+			// this is just a note saying the item has been ordered
+			
+			$strTable = "class=\"bibOrder";
+			$bolOrderNote = true;
+		} 
+		elseif ( strpos( $strHtml, "class=\"bibHoldings" ) !== false )
+		{
+			$strTable = "class=\"bibHoldings";
+		} 
+		elseif ( strpos( $strHtml, "class=\"bibDetail" ) !== false )
+		{
+			$strTable = "class=\"bibDetail";
+		} 
+		else
+		{
+			return $arrHoldings;
+		}
+		
+		// narrow the page initially to the holdings table
+
+		$strHtml = $this->removeLeft( $strHtml, $strTable );
+		$strHtml = $this->removeRight( $strHtml, "</table>" );
+		
+		// we'll use the table row as the delimiter of each holding
+
+		while ( strstr( $strHtml, "<tr" ) )
+		{
+			$arrItem = array ( );
+			$strItem = "";
+			
+			// remove everything left of the table row, dump the row content into a
+			// local variable, while removing it from the master variable so
+			// our loop above continues to cycle thru the results
+
+			$strHtml = $this->removeLeft( $strHtml, "<tr" );
+			$strItem = "<tr" . $this->removeRight( $strHtml, "</tr>" );
+			$strHtml = $this->removeLeft( $strHtml, "</tr>" );
+			
+			// make sure this isn't the header row
+
+			if ( strpos( $strItem, "<th" ) === false )
+			{
+				// extract any url in item, especially for InnReach
+
+				$strUrl = null;
+				$arrUrl = array ( );
+				
+				if ( preg_match( "/<a href=\"([^\"]{1,})\">/", $strItem, $arrUrl ) )
+				{
+					$strUrl = $arrUrl[1];
+				}
+				
+				// replace the item record marc field comments with place holders
+				// so we can grab them later after removing the html tags
+				
+				$strItem = preg_replace("/<\!-- field (.{1}) -->/", "+~\$1~", $strItem);
+				
+				// strip out tags and non-breaking spaces 
+
+				$strItem = strip_tags( $strItem );
+				$strItem = str_replace( "&nbsp;", "", $strItem );
+				
+				// normalize spaces
+				
+				while ( strstr( $strItem, "  " ) )
+				{
+					$strItem = str_replace( "  ", " ", $strItem );
+				}
+				
+				$strItem = trim( $strItem );
+				
+				// now split the remaining data out into an array
+				
+				$arrItem = array();
+				
+				// the display included the item record field comments, in which
+				// case we will use these over a general column-based approach
+				// since it is more precise; this should be the case on all local systems
+									
+				if ( strstr($strItem, "+~"))
+				{
+					$bolFieldNotes = true;
+					$arrItemTemp = explode( "+~", $strItem );
+					
+					foreach ($arrItemTemp as $strItemTemp)
+					{
+						if ( strstr($strItemTemp, "~") )
+						{
+							$arrItemField = explode("~", $strItemTemp);
+							$strFieldKey = trim($arrItemField[0]);
+							$strFieldValue = trim($arrItemField[1]);
+							$arrItem[$strFieldKey] = $strFieldValue;
+						}
+					}					
+				}
+				else
+				{
+					$arrItem = explode( "\n", $strItem );
+
+					// add url back into the array
+				
+					if ( $strUrl != null )
+					{
+						array_push( $arrItem, $strUrl );
+					}				
+				}
+				
+				// final clean-up, assignment
+				
+				$objItem = new InnopacWeb_Item();
+				
+				if ( $bolFieldNotes == true )
+				{
+					foreach ( $arrItem as $key => $strData )
+					{
+						switch ( $key )
+						{
+							case "1" :
+								$objItem->location = $strData;
+								break;
+							
+							case "C" :
+								$objItem->call_number = $strData;
+								break;
+
+							case "v" :
+								$objItem->volume = $strData;
+								break;
+																
+							case "%" :
+								$objItem->status = $strData;
+								break;
+						}
+					}
+				}
+				else
+				{
+					for ( $x = 0 ; $x < count( $arrItem ) ; $x ++ )
+					{
+						$strData = trim( $arrItem[$x] );
+						
+						if ( $bolOrderNote == true )
+						{
+							$objItem->status = "ON ORDER";
+							$objItem->note = $strData;
+						}
+						elseif ( $this->bolInnReach == true )
+						{
+							switch ( $x )
+							{
+								case 0 :
+									$objItem->institution = $strData;
+									break;
+								
+								case 1 :
+									$objItem->location = $strData;
+									break;
+								
+								case 2 :
+									
+									// note for accessing item online
+									
+									$objItem->note = $strData;
+									break;
+								
+								case 3 :
+									
+									// this is a link if the second position had an
+									// online access note
+									
+									if ( $objItem->note != "" )
+									{
+										$objItem->link = $strData;
+									}
+									else
+									{
+										$objItem->call_number = $strData;
+									}
+									
+									break;
+								
+								case 4 :
+									$objItem->status = $strData;
+									break;
+							}
+						}
+						else
+						{
+							switch ( $x )
+							{
+								case 0 :
+									$objItem->location = $strData;
+									break;
+								
+								case 2 :
+									$objItem->call_number = $strData;
+									break;
+								
+								case 3 :
+									$objItem->status = $strData;
+									break;
+							}
+						}
+					}
+				}
+				
+				$arrMatches = array();
+				
+				if ( preg_match("/([0-9]{2})-([0-9]{2})-([0-9]{2})/", $objItem->status, $arrMatches) )
+				{
+					$objDate = new DateTime($arrMatches[1] . "/" . $arrMatches[2] . "/" . $arrMatches[3]);
+					$objItem->dateAvailable = $objDate;
+				}
+				
+				array_push( $arrHoldings, $objItem );
+			}
+		}
+		
+		return $arrHoldings;
+	}
+	
+  /**
+	 * Extracts the MARC data from the HTML response and converts it to MARC-XML
+	 *
+	 * @param string $strMarc	marc data as string
+	 * @return DOMDocument		marc-xml document
+	 */
+	
+	private function extractMarc($strResponse)
+	{
+		$objXml = new DOMDocument( );
+		$objXml->recover = true;
+		
+		$strMarc = ""; // marc data as text
+		$arrTags = array ( ); // array to hold each MARC tag
+
+		// parse out MARC data
+
+		$strMarc = $this->removeLeft( $strResponse, "<pre>" );
+		$strMarc = $this->removeRight( $strMarc, "</pre>" );
+		
+		// remove break-tabs for easier parsing
+
+		$strMarc = str_replace( "\n       ", "", $strMarc );
+		$strMarc = trim( $strMarc );
+		
+		// assign the marc values to the array based on Unix LF as delimiter
+
+		$arrTags = explode( "\n", $strMarc );
+		
+		// begin building the XML response
+
+		$objXml->loadXML( "<record xmlns=\"http://www.loc.gov/MARC21/slim\" />" );
+		
+		foreach ( $arrTags as $strTag )
+		{
+			// assign tag # and identifiers
+
+			$strTagNumber = substr( $strTag, 0, 3 );
+			$strId1 = substr( $strTag, 4, 1 );
+			$strId2 = substr( $strTag, 5, 1 );
+			
+			// assign data and clean it up
+
+			$strData = substr( $strTag, 7 );
+			$strData = utf8_encode( $strData );
+			$strData = $this->escapeXml( $strData );
+			$strData = trim( $strData );
+			
+			if ( $strTagNumber == "LEA" )
+			{
+				// leader
+				
+				$objLeader = $objXml->createElementNS( $this->strMarcNS, "leader", $strData );
+				$objXml->documentElement->appendChild( $objLeader );
+			} 
+			elseif ( $strTagNumber == "REC" )
+			{
+				// Pseudo-MARC "REC" data field to store the INNOPAC
+				// bibliographic record number in subfield a.
+
+				$objRecNum = $objXml->createElementNS( $this->strMarcNS, "datafield" );
+				$objRecNum->setAttribute( "tag", "REC" );
+				$objRecNum->setAttribute( "ind1", ' ' );
+				$objRecNum->setAttribute( "ind2", ' ' );
+				
+				$objRecNumSub = $objXml->createElementNS( $this->strMarcNS, "subfield", strtolower( $strData ) );
+				$objRecNumSub->setAttribute( "code", 'a' );
+				$objRecNum->appendChild( $objRecNumSub );
+				$objXml->documentElement->appendChild( $objRecNum );
+			}
+			elseif ( ( int ) $strTagNumber <= 8 )
+			{
+				// control fields
+
+				$objControlField = $objXml->createElementNS( $this->strMarcNS, "controlfield", $strData );
+				$objControlField->setAttribute( "tag", $strTagNumber );
+				$objXml->documentElement->appendChild( $objControlField );
+			} 
+			else
+			{
+				// data fields
+
+				$objDataField = $objXml->createElementNS( $this->strMarcNS, "datafield" );
+				$objDataField->setAttribute( "tag", $strTagNumber );
+				$objDataField->setAttribute( "ind1", $strId1 );
+				$objDataField->setAttribute( "ind2", $strId2 );
+				
+				// if first character is not a pipe symbol, then this is the default |a subfield
+				// so make that explicit for the array
+
+				if ( substr( $strData, 0, 1 ) != "|" )
+				{
+					$strData = "|a " . $strData;
+				}
+				
+				// split the subfield data on the pipe and add them in using the first
+				// character after the delimiter as the subfield code
+				
+				$arrSubFields = explode( "|", $strData );
+				
+				foreach ( $arrSubFields as $strSubField )
+				{
+					if ( $strSubField != "" )
+					{
+						$objSubField = $objXml->createElementNS( $this->strMarcNS, "subfield", trim( substr( $strSubField, 1 ) ) );
+						$objSubField->setAttribute( "code", substr( $strSubField, 0, 1 ) );
+						$objDataField->appendChild( $objSubField );
+					}
+				}
+				
+				$objXml->documentElement->appendChild( $objDataField );
+			}
+		}
+		
+		return $objXml;
+	}
+	/**
+	 * Convenience class to get both the marc record and the item objects
+	 *
+	 * @param string $strResponse	HTML MARC display page from catalog
+	 * @return File_MARC_Record			MARC-XML response
+	 */
+	
+	private function extractRecord($strResponse)
+	{
+		$objXml = $this->extractMarc( $strResponse );
+		$arrHoldings = $this->extractHoldings( $strResponse );
+		
+		$objRecord = new shrewRecord( );
+		$marcobj = new File_MARCXML($objXML->saveXML(), 2);
+		
+		$objRecord->bibliographicRecord = $marcobj->next();
+		$objRecord->items = $arrHoldings;
+		
+		return $objRecord;
+	}
+}
 
 /**
- * Enter description here...
- *
- * @param $shrewinstance
- *   ShrewClient object
- * @param $id
- *   string of record IDs
- * @return
- *   array
+ * Subclassing InnopacWeb_Record since we are using shrew_get() to return
+ * a slightly different object; shrewRecord->bibliographicRecord is a
+ * File_MARC_Record, not a DOMDocument
  */
-function shrew_get($shrewinstance, $id) {
-  $out = array();
-  $response = $shrewinstance->getRecords($id);
-  if (count($response) > 0) {
-    foreach ($response as $r) {
-      $srec = new shrewRecord();
-      $srec->bibliographicRecord = shrew_record_parse($r->bibliographicRecord->saveXML());
-      $srec->items = $r->items;
-      $out[] = $srec;
-    }
-  }
-  return $out;
-}
-
-
-/**
- * Enter description here...
- *
- * @param $record
- *   string Single MARCXML record
- *
- * @return
- *   File_MARC_Record
- */
-function shrew_record_parse($record) {
-  $obj = new File_MARCXML($record, 2);
-  $mxrecord = $obj->next();
-  return $mxrecord;
-}
-
-
-class shrewRecord extends InnopacWeb_Record {
-// public $bibliographicRecord; // File_MARC_Record
-// public $items = array(); // array
-}
+class shrewRecord extends InnopacWeb_Record {}
