@@ -150,6 +150,12 @@ class shrewClient extends InnopacWeb
     return $out;
   }
 }
+ 
+  /**
+   * Subclassing InnopacWeb_Record since we are using shrew_get() to return
+   * a slightly different object; shrewRecord->bibliographicRecord is a
+   * File_MARC_Record, not a DOMDocument
+   */
 
 class shrewRecord extends InnopacWeb_Record {
 // public $bibliographicRecord; // File_MARC_Record
