@@ -19,17 +19,17 @@ function shrew_requirements($phase) {
   $requirements = array();
   // Ensure translations don't break at install time.
   $t = get_t();
-  
+
   switch ($phase) {
     case 'runtime':
       $requirements['shrew'] = array('title' => $t('shrew library'));
-      
+
       $library = shrew_get_library();
       if (file_exists($library)) {
         shrew_require();
         $requirements['shrew']['severity'] = REQUIREMENT_OK;
       }
-      
+
       else {
         $requirements['shrew']['description'] = $t('The <a href="@url" target="_blank">Shrew</a> library or the <a href="@marc" target="_blank">File_MARC</a> PEAR module was not found.', array('@url' => 'http://code.google.com/p/shrew/', '@marc' => 'http://pear.php.net/package/File_MARC/'));
         $requirements['shrew']['severity'] = REQUIREMENT_WARNING;

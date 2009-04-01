@@ -1,15 +1,18 @@
 <?php
 // $Id$
 
+require_once drupal_get_path('module', 'shrew') .'/lib/InnopacWeb.php';
+require_once('File/MARCXML.php');
+
 /**
  * @file
- * 
+ *
  * @see http://code.google.com/p/shrew/
  */
 
 /**
  * Implementation of hook_help().
- */ 
+ */
 function shrew_help($path, $arg) {
   switch ($path) {
     case 'admin/help#shrew':
@@ -63,12 +66,9 @@ function shrew_get_webpac_location() {
 }
 
 function shrew_require($once = TRUE) {
-  // if (defined('shrew_VERSION')) {
-  //   return;
-  // }
-  
+
   $library = shrew_get_library();
-  
+
   if ($once) {
     require_once './'. $library;
     require_once 'File/MARCXML.php';
@@ -89,16 +89,13 @@ function shrew_require($once = TRUE) {
  */
 function shrew_init() {
   static $shrew = NULL;
-  
+
   shrew_require();
   $loc = shrew_get_webpac_location();
   if ($loc != NULL) {
     $shrew = new InnopacWeb($loc);
-    return $shrew;
   }
-  else {
-      
-  }
+  return $shrew;
 }
 
 
@@ -106,7 +103,7 @@ function shrew_init() {
  * Enter description here...
  *
  * @param $shrewinstance
- *   Shrew::InnopacWeb object
+ *   ShrewClient object
  * @param $id
  *   string of record IDs
  * @return
@@ -116,11 +113,13 @@ function shrew_get($shrewinstance, $id) {
   $out = array();
   $response = $shrewinstance->getRecords($id);
   if (count($response) > 0) {
-    foreach ($response as $record) {
-      //$record->bibliographicRecord->formatOutput = true;
-      $out[] = $record;
+    foreach ($response as $r) {
+      $srec = new shrewRecord();
+      $srec->bibliographicRecord = shrew_record_parse($r->bibliographicRecord->saveXML());
+      $srec->items = $r->items;
+      $out[] = $srec;
     }
-  }  
+  }
   return $out;
 }
 
@@ -140,3 +139,8 @@ function shrew_record_parse($record) {
   return $mxrecord;
 }
 
+
+class shrewRecord extends InnopacWeb_Record {
+// public $bibliographicRecord; // File_MARC_Record
+// public $items = array(); // array
+}
