@@ -125,6 +125,30 @@ function shrew_record_parse($record) {
 }
 
 
+/**
+ * Pretty print a MARC_Field object without tags, indicators, etc.
+ *
+ * @param File_MARC_Field $field
+ * @return string
+ *  the formatted field data
+ */
+function shrew_field_format($field) {
+    if ($field->isControlField()) {
+        return $field->getData();
+    } else {
+        $out = '';
+        foreach ($field->getSubfields() as $subfield) {
+            if (substr($field->getTag(), 0, 1) == '6' and (in_array($subfield->getCode(), array('v','x','y','z')))) {
+                $out .= ' -- '.$subfield->getData();
+            } else {
+                $out .= ' '.$subfield->getData();
+            }
+        }
+        return trim($out);
+    }
+}
+
+
 class shrewClient extends InnopacWeb {
   
   /**
@@ -141,12 +165,12 @@ class shrewClient extends InnopacWeb {
     $out = array();
     $response = parent::getRecords($id);
     if (count($response) > 0) {
-      foreach ($response as $r) {
+      foreach ($response as $key => $r) {
         $srec = new shrewRecord();
         $xml = $r->bibliographicRecord->saveXML();
         $srec->bibliographicRecord = shrew_record_parse($xml);
         $srec->items = $r->items;
-        $out[] = $srec;
+        $out[$key] = $srec;
       }
     }
     return $out;
