@@ -36,6 +36,7 @@ function shrew_menu() {
   return $items;
 }
 
+
 function shrew_admin_settings() {
   $form['shrew_webpac_location'] = array(
     '#type' => 'textfield',
@@ -48,19 +49,25 @@ function shrew_admin_settings() {
   return system_settings_form($form);
 }
 
+
 function shrew_get_library() {
   return drupal_get_path('module', 'shrew') .'/lib/InnopacWeb.php';
 }
 
 /**
- * Enter description here...
+ * Setter method for webpac location
  *
  * @param $location
+ *  URI for Webpac instance
  */
 function shrew_set_webpac_location($location) {
   variable_set('shrew_webpac_location', $location);
 }
 
+
+/**
+ * Getter method for webpac location
+ */
 function shrew_get_webpac_location() {
   return variable_get('shrew_webpac_location', NULL);
 }
@@ -79,30 +86,33 @@ function shrew_require($once = TRUE) {
   }
 }
 
+
 /**
- * Enter description here...
+ * Helper function to instantiate a new shrewClient
  *
  * @param $webpac_location
  *   URI for III Webpac instance
  * @return
  *   Instance of shrew.
  */
-function shrew_init() {
+function shrew_init($webpac_location = FALSE) {
   static $shrew = NULL;
-
   shrew_require();
-  $loc = shrew_get_webpac_location();
-  if ($loc != NULL) {
-    $shrew = new shrewClient($loc);
-  }
+
+  if ($webpac_location == FALSE) {
+    $webpac_location = shrew_get_webpac_location();
+  } 
+  
+  $shrew = new shrewClient($webpac_location);
   return $shrew;
 }
 
 
 /**
- * Enter description here...
+ * Parses a single MARCXML record stored as a string into a File_MARC_Record
+ * object
  *
- * @param $record
+ * @param string $record
  *   string Single MARCXML record
  *
  * @return
@@ -114,30 +124,22 @@ function shrew_record_parse($record) {
   return $mxrecord;
 }
 
-/**
-* 
-*/
-class shrewClient extends InnopacWeb
-{
-  
-  function __construct($strServer)
-  {
-    parent::__construct($strServer);
-  }
+
+class shrewClient extends InnopacWeb {
   
   /**
-   * Enter description here...
-   *
+ 	 * Given a list of record identifiers, returns a list of record objects that
+ 	 * contain bibliographic information, as well as associated holdings and
+ 	 * item information.
+ 	 *
    * @param $id
-   *   string of record IDs
- 	 * @param string $schema
- 	 *   defines the metadata schema in which the records are returned, currently only marc-xml
+   *   string of record IDs, separated by spaces
    * @return
    *   array
    */
-  public function getRecords($id, $schema = 'marc-xml') {
+  public function get_records($id) {
     $out = array();
-    $response = parent::getRecords($id, $schema);
+    $response = parent::getRecords($id);
     if (count($response) > 0) {
       foreach ($response as $r) {
         $srec = new shrewRecord();
@@ -151,12 +153,11 @@ class shrewClient extends InnopacWeb
   }
 }
  
-  /**
-   * Subclassing InnopacWeb_Record since we are using shrew_get() to return
-   * a slightly different object; shrewRecord->bibliographicRecord is a
-   * File_MARC_Record, not a DOMDocument
-   */
-
+/**
+ * Subclassing InnopacWeb_Record since we are using shrew_get() to return
+ * a slightly different object; shrewRecord->bibliographicRecord is a
+ * File_MARC_Record, not a DOMDocument
+ */
 class shrewRecord extends InnopacWeb_Record {
 // public $bibliographicRecord; // File_MARC_Record
 // public $items = array(); // array
