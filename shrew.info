@@ -3,9 +3,6 @@ name = Shrew
 description = Integrates the Shrew library for interacting with Innovative Interfaces integrated library systems and online catalogs.
 core = 6.x
 
-; Information added by drupal.org packaging script on 2008-09-02
 version = "6.x-1.x-dev"
 core = "6.x"
-project = "shrew"
-datestamp = "1220314210"
-
+project = "shrew"   
