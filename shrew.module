@@ -67,6 +67,9 @@ function shrew_set_webpac_location($location) {
 
 /**
  * Getter method for webpac location
+ *
+ * @return string
+ *  URI for III Webpac instance
  */
 function shrew_get_webpac_location() {
   return variable_get('shrew_webpac_location', NULL);
@@ -92,8 +95,7 @@ function shrew_require($once = TRUE) {
  *
  * @param $webpac_location
  *   URI for III Webpac instance
- * @return
- *   Instance of shrew.
+ * @return InnopacWeb
  */
 function shrew_init($webpac_location = FALSE) {
   static $shrew = NULL;
@@ -148,6 +150,30 @@ function shrew_marc_field_format($field) {
     }
 }
 
+/**
+  * Function to check if record actually exists in system. This does not use
+  * drupal_http_request since http://drupal.org/node/183435 has yet to be
+  * resolved - some Webpac instances return malformed responses.
+  *
+  * @param string $id
+  *   record ID
+  * @param string $webpac_location
+  *   string URI for III Webpac instance
+  * @return boolean
+  */
+function shrew_record_check($id, $webpac_location = FALSE) {
+  $shrew = shrew_init($webpac_location);
+  $url = $shrew->goToBibliographicRequestPage($id);
+  $response = file_get_contents($url);
+  //$data = $response->data;
+  //echo htmlspecialchars($data);
+  //if (($response->code == 200) && (stristr($data, 'no such record') === FALSE)) {
+  if (stristr($response, 'no such record') === FALSE) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
 
 /**
   * Wrapper function for Shrew's InnopacWeb::getRecords(). Returns a different
@@ -179,7 +205,7 @@ function shrew_record_get($id, $webpac_location = FALSE) {
  
 /**
  * Subclassing InnopacWeb_Record since we are using shrew_get() to return
- * a slightly different object; shrewRecord->bibliographicRecord is a
+ * a slightly different object; shrewRecord::bibliographicRecord is a
  * File_MARC_Record, not a DOMDocument
  */
 class shrewRecord extends InnopacWeb_Record {}

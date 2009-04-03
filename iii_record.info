@@ -1,0 +1,10 @@
+; $Id$
+name = III Record Link
+description = Defines a field type to link to records in an Innovative Interfaces online library catalog.
+
+core = 6.x
+
+package = CCK
+
+requirements[] = shrew
+requirements[] = content
