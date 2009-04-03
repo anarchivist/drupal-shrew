@@ -103,7 +103,7 @@ function shrew_init($webpac_location = FALSE) {
     $webpac_location = shrew_get_webpac_location();
   } 
   
-  $shrew = new shrewClient($webpac_location);
+  $shrew = new InnopacWeb($webpac_location);
   return $shrew;
 }
 
@@ -132,7 +132,7 @@ function shrew_record_parse($record) {
  * @return string
  *  the formatted field data
  */
-function shrew_field_format($field) {
+function shrew_marc_field_format($field) {
     if ($field->isControlField()) {
         return $field->getData();
     } else {
@@ -149,40 +149,37 @@ function shrew_field_format($field) {
 }
 
 
-class shrewClient extends InnopacWeb {
-  
-  /**
- 	 * Given a list of record identifiers, returns a list of record objects that
- 	 * contain bibliographic information, as well as associated holdings and
- 	 * item information.
- 	 *
-   * @param $id
-   *   string of record IDs, separated by spaces
-   * @return
-   *   array
-   */
-  public function get_records($id) {
-    $out = array();
-    $response = parent::getRecords($id);
-    if (count($response) > 0) {
-      foreach ($response as $key => $r) {
-        $srec = new shrewRecord();
-        $xml = $r->bibliographicRecord->saveXML();
-        $srec->bibliographicRecord = shrew_record_parse($xml);
-        $srec->items = $r->items;
-        $out[$key] = $srec;
-      }
+/**
+  * Wrapper function for Shrew's InnopacWeb::getRecords(). Returns a different
+  * format for objects as we're parsing the MARCXML response into
+  * File_MARC_Record objects.
+  *
+  * @param string $id
+  *   string of record IDs, separated by spaces
+  * @param string $webpac_location
+  *   string URI for III Webpac instance
+  * @return array
+  */
+function shrew_record_get($id, $webpac_location = FALSE) {
+  $shrew = shrew_init($webpac_location);
+  $out = array();
+  $response = $shrew->getRecords($id);
+  if (count($response) > 0) {
+    foreach ($response as $key => $r) {
+      $srec = new shrewRecord();
+      $xml = $r->bibliographicRecord->saveXML();
+      $srec->bibliographicRecord = shrew_record_parse($xml);
+      $srec->items = $r->items;
+      $out[$key] = $srec;
     }
-    return $out;
   }
+  return $out;
 }
+
  
 /**
  * Subclassing InnopacWeb_Record since we are using shrew_get() to return
  * a slightly different object; shrewRecord->bibliographicRecord is a
  * File_MARC_Record, not a DOMDocument
  */
-class shrewRecord extends InnopacWeb_Record {
-// public $bibliographicRecord; // File_MARC_Record
-// public $items = array(); // array
-}
+class shrewRecord extends InnopacWeb_Record {}
