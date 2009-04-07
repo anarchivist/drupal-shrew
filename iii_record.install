@@ -12,12 +12,14 @@ function iii_record_install() {
   content_notify('install', 'iii_record');
 }
 
+
 /**
  * Implementation of hook_uninstall().
  */
 function iii_record_uninstall() {
   content_notify('uninstall', 'iii_record');
 }
+
 
 /**
  * Implementation of hook_enable().
@@ -27,6 +29,7 @@ function iii_record_uninstall() {
 function iii_record_enable() {
   content_notify('enable', 'iii_record');
 }
+
 
 /**
  * Implementation of hook_disable().

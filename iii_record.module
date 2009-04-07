@@ -3,7 +3,8 @@
 
 /**
  * @file
- * Defines a field type for referencing an Amazon product.
+ * Defines a field type for referencing a record in an Innovative Interfaces
+ * online library catalog`.
  */
 
 /**
@@ -14,23 +15,21 @@ function iii_record_theme() {
     'iii_record_text' => array(
       'arguments' => array('element'),
     ),
-    'iii_record_lookup' => array(
-      'arguments' => array('element'),
-    ),
     'iii_record_formatter_default' => array(
       'arguments' => array('element'),
     ),
-    // 'iii_record_formatter_thumbnail' => array(
-    //   'arguments' => array('element'),
-    // ),
-    // 'iii_record_formatter_details' => array(
-    //   'arguments' => array('element'),
-    // ),
-    // 'iii_record_formatter_inline' => array(
-    //   'arguments' => array('element'),
-    // ),
+    'iii_record_formatter_url' => array(
+      'arguments' => array('element'),
+    ),
+    'iii_record_formatter_plain' => array(
+      'arguments' => array('element'),
+    ),
+    'iii_record_formatter_title' => array(
+      'arguments' => array('element'),
+    ),
   );
 }
+
 
 /**
  * Implementation of hook_field_info().
@@ -51,6 +50,7 @@ function iii_record_field_info() {
     ),
   );
 }
+
 
 /**
  * Implementation of hook_field_settings().
@@ -73,6 +73,7 @@ function iii_record_field_settings($op, $field) {
   }
 }
 
+
 /**
  * Implementation of hook_field().
  */
@@ -91,6 +92,7 @@ function iii_record_field($op, &$node, $field, &$items, $teaser, $page) {
   }
 }
 
+
 /**
  * Implementation of hook_content_is_empty().
  */
@@ -101,77 +103,79 @@ function iii_record_content_is_empty($item, $field) {
   return FALSE;
 }
 
+
 /**
  * Implementation of hook_field_formatter_info().
  */
 function iii_record_field_formatter_info() {
   return array(
     'default' => array(
-      'label' => t('Link to catalog record'),
+      'label' => t('Link with "Link to catalog record" text'),
       'field types' => array('iii_record'),
       'multiple values' => CONTENT_HANDLE_CORE,
     ),
-    // 'details' => array(
-    //   'label' => t('Small image and full info'),
-    //   'field types' => array('iii_record'),
-    //   'multiple values' => CONTENT_HANDLE_CORE,
-    // ),
-    // 'thumbnail' => array(
-    //   'label' => t('Large image'),
-    //   'field types' => array('iii_record'),
-    //   'multiple values' => CONTENT_HANDLE_CORE,
-    // ),
-    // 'inline' => array(
-    //   'label' => t('Title as link'),
-    //   'field types' => array('iii_record'),
-    //   'multiple values' => CONTENT_HANDLE_CORE,
-    // ),
+    'url' => array(
+      'label' => t('Link with URL displayed'),
+      'field types' => array('iii_record'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+    'plain' => array(
+      'label' => t('Record number as text'),
+      'field types' => array('iii_record'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+    'title' => array(
+      'label' => t('Title as link'),
+      'field types' => array('iii_record'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
   );
 }
 
+
 /**
- * Theme function for 'default' iii_record field formatter, appropriate for
- * general use and product listings.
+ * Theme function for 'default' iii_record field formatter
  */
 function theme_iii_record_formatter_default($element) {
   // Display a normal link if both title and URL are available.
-  if (!empty($element['#item']['iii_record'])) {
-    $baseurl = shrew_get_webpac_location() . '/record=';
-    return l("Link to catalog record", $baseurl . $element['#item']['iii_record'], $element['#item']);
+  if ($iii_record = $element['#item']['iii_record']) {
+    $url = shrew_get_webpac_location().'/record='.$iii_record;
+    return l("Link to catalog record", $url, array());
   }
 }
-// /**
-//  * Theme function for 'thumbnail' iii_record field formatter, appropriate for
-//  * product hilighting and display.
-//  */
-// function theme_iii_record_formatter_thumbnail($element) {
-//   if ($iii_record = $element['#item']['iii_record']) {
-//     $iii_records = amazon_item_lookup(array($iii_record));
-//     return theme('amazon_item', $iii_records[$iii_record], 'thumbnail');
-//   }
-// }
-// 
-// /**
-//  * Theme function for 'full' iii_record field formatter, appropriate for
-//  * product hilighting and display.
-//  */
-// function theme_iii_record_formatter_details($element) {
-//   if ($iii_record = $element['#item']['iii_record']) {
-//     $iii_records = amazon_item_lookup(array($iii_record));
-//     return theme('amazon_item', $iii_records[$iii_record], 'details');
-//   }
-// }
-// 
-// /**
-//  * Theme function for 'inline' iii_record field formatter, appropriate for
-//  * quick title lists, etc.
-//  */
-// function theme_iii_record_formatter_inline($element) {
-//   if ($iii_record = $element['#item']['iii_record']) {
-//     $iii_records = amazon_item_lookup(array($iii_record));
-//     return theme('amazon_inline_item', $iii_records[$iii_record]);
-//   }
-// }
+
+
+/**
+ * Theme function for 'url' iii_record field formatter
+ */
+function theme_iii_record_formatter_url($element) {
+  if ($iii_record = $element['#item']['iii_record']) {
+    $url = shrew_get_webpac_location().'/record='.$iii_record;
+    return l($url, $url, array());
+  }
+}
+
+
+/**
+ * Theme function for 'plain' iii_record field formatter
+ */
+function theme_iii_record_formatter_plain($element) {
+  if ($iii_record = $element['#item']['iii_record']) {
+    return '<span class="iii_record_number">'.$iii_record.'</span>';
+  }
+}
+
+
+/**
+ * Theme function for 'title' iii_record field formatter
+ */
+function theme_iii_record_formatter_title($element) {
+  if ($iii_record = $element['#item']['iii_record']) {
+    $url = shrew_get_webpac_location().'/record='.$iii_record;
+    $titles = shrew_record_title($iii_record);
+    return l($titles[$iii_record], $url, array());
+  }
+}
 
 
 /**
@@ -201,6 +205,7 @@ function iii_record_widget_info() {
   );
 }
 
+
 /**
  * Implementation of FAPI hook_elements().
  *
@@ -218,6 +223,7 @@ function iii_record_elements() {
     ),
   );
 }
+
 
 /**
  * Implementation of hook_widget().
@@ -258,6 +264,7 @@ function iii_record_widget(&$form, &$form_state, $field, $items, $delta = 0) {
   return $element;
 }
 
+
 /**
  * Process an individual element.
  *
@@ -296,13 +303,11 @@ function iii_record_text_validate($element, &$form_state) {
 function theme_iii_record_text($element) {
   // drupal_add_css(drupal_get_path('module', 'iii_record') .'/iii_record.css', 'module', 'all', FALSE);
   $output = $element['#children'];
-  if (!empty($element['#value']) && !empty($element['#value']['iii_record'])) {
-    $iii_record = $element['#value']['iii_record'];
-    if ($data = amazon_item_lookup(array($iii_record))) {
-      $output .= '<p class="iii_record-edit-title">'. check_plain($data[$iii_record]['title']) .'</p>';
-    }
-  }
+  // if (!empty($element['#value']) && !empty($element['#value']['iii_record'])) {
+  //   $iii_record = $element['#value']['iii_record'];
+  //   if ($data = amazon_item_lookup(array($iii_record))) {
+  //     $output .= '<p class="iii_record-edit-title">'. check_plain($data[$iii_record]['title']) .'</p>';
+  //   }
+  // }
   return $output;
 }
-
-

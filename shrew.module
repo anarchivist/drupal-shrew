@@ -22,6 +22,7 @@ function shrew_help($path, $arg) {
   }
 }
 
+
 /**
  * Implementation of hook_menu().
  */
@@ -54,6 +55,7 @@ function shrew_get_library() {
   return drupal_get_path('module', 'shrew') .'/lib/InnopacWeb.php';
 }
 
+
 /**
  * Setter method for webpac location
  *
@@ -74,6 +76,7 @@ function shrew_set_webpac_location($location) {
 function shrew_get_webpac_location() {
   return variable_get('shrew_webpac_location', NULL);
 }
+
 
 function shrew_require($once = TRUE) {
 
@@ -134,21 +137,46 @@ function shrew_record_parse($record) {
  * @return string
  *  the formatted field data
  */
-function shrew_marc_field_format($field) {
+function shrew_field_format($field) {
     if ($field->isControlField()) {
         return $field->getData();
-    } else {
+    }
+    else {
         $out = '';
         foreach ($field->getSubfields() as $subfield) {
-            if (substr($field->getTag(), 0, 1) == '6' and (in_array($subfield->getCode(), array('v','x','y','z')))) {
-                $out .= ' -- '.$subfield->getData();
-            } else {
-                $out .= ' '.$subfield->getData();
+            if (substr($field->getTag(), 0, 1) == '6' and (in_array($subfield->getCode(), array('v', 'x', 'y', 'z')))) {
+                $out .= ' -- '. $subfield->getData();
+            }
+            else {
+                $out .= ' '. $subfield->getData();
             }
         }
         return trim($out);
     }
 }
+
+
+/**
+  * Retrieve an array of formatted fields from a File_MARC_Record object,
+  * specified by tag
+  *
+  * @param File_MARC_Record $record
+  *   record
+  * @param string $tag
+  *   MARC tag to retrieve
+  * @param bool $pcre
+  *   if true, then match as a regular expression
+  * @return array
+  */
+function shrew_field_get($record = NULL, $tag = NULL, $pcre = FALSE) {
+  $out = array();
+  if (!empty($record)) {
+    $fieldset = $record->getFields($tag, $pcre);
+    $out = array_map('shrew_field_format', $fieldset);
+  }
+  return $out;
+}
+
 
 /**
   * Function to check if record actually exists in system. This does not use
@@ -170,10 +198,12 @@ function shrew_record_check($id, $webpac_location = FALSE) {
   //if (($response->code == 200) && (stristr($data, 'no such record') === FALSE)) {
   if (stristr($response, 'no such record') === FALSE) {
     return TRUE;
-  } else {
+  }
+  else {
     return FALSE;
   }
 }
+
 
 /**
   * Wrapper function for Shrew's InnopacWeb::getRecords(). Returns a different
@@ -202,7 +232,30 @@ function shrew_record_get($id, $webpac_location = FALSE) {
   return $out;
 }
 
- 
+
+/**
+  * Retrieve a formatted 245 field from bibliographic records specified by
+  * their record ID.
+  *
+  * @param string $id
+  *   string of record IDs, separated by spaces
+  * @param string $webpac_location
+  *   string URI for III Webpac instance
+  * @return array
+  */
+function shrew_record_title($id, $webpac_location = FALSE) {
+  $response = shrew_record_get($id, $webpac_location);
+  $out = array();
+  if (count($response) > 0) {
+    foreach ($response as $key => $r) {
+      $title = shrew_field_get($r->bibliographicRecord, '245');
+      $out[$key] = $title[0];
+    }
+  }
+  return $out;
+}
+
+
 /**
  * Subclassing InnopacWeb_Record since we are using shrew_get() to return
  * a slightly different object; shrewRecord::bibliographicRecord is a
