@@ -134,20 +134,24 @@ function shrew_record_parse($record) {
  * Pretty print a MARC_Field object without tags, indicators, etc.
  *
  * @param File_MARC_Field $field
+ *   File_MARC_Field object to format
+ * @param array $exclude
+ *   array of subfields to exclude
  * @return string
  *  the formatted field data
  */
-function shrew_field_format($field) {
+function shrew_field_format($field, $exclude = array('2')) {
     if ($field->isControlField()) {
         return $field->getData();
     }
     else {
         $out = '';
         foreach ($field->getSubfields() as $subfield) {
-            if (substr($field->getTag(), 0, 1) == '6' and (in_array($subfield->getCode(), array('v', 'x', 'y', 'z')))) {
+            $code = $subfield->getCode();
+            if (substr($field->getTag(), 0, 1) == '6' and (in_array($code, array('v', 'x', 'y', 'z')))) {
                 $out .= ' -- '. $subfield->getData();
             }
-            else {
+            elseif (!in_array($code, $exclude)) {
                 $out .= ' '. $subfield->getData();
             }
         }

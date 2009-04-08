@@ -4,7 +4,7 @@
 /**
  * @file
  * Defines a field type for referencing a record in an Innovative Interfaces
- * online library catalog`.
+ * online library catalog.
  */
 
 /**
@@ -58,7 +58,7 @@ function iii_record_field_info() {
 function iii_record_field_settings($op, $field) {
   switch ($op) {
     case 'database columns':
-      $columns['iii_record'] = array('type' => 'varchar', 'length' => 32, 'not null' => FALSE);
+      $columns['value'] = array('type' => 'varchar', 'length' => 32, 'not null' => FALSE);
       return $columns;
 
     case 'views data':
@@ -67,7 +67,7 @@ function iii_record_field_settings($op, $field) {
       $table_alias = content_views_tablename($field);
 
       // Swap the filter handler to the 'in' operator.
-      $data[$table_alias][$field['field_name'] .'_iii_record']['filter']['handler'] = 'views_handler_filter_many_to_one_content';
+      $data[$table_alias][$field['field_name'] .'_value']['filter']['handler'] = 'views_handler_filter_many_to_one_content';
 
       return $data;
   }
@@ -82,8 +82,8 @@ function iii_record_field($op, &$node, $field, &$items, $teaser, $page) {
     case 'validate':
       foreach ($items as $delta => $item) {
         if (is_array($item)) {
-          if (!empty($item['iii_record']) && !shrew_record_check($item['iii_record'])) {
-            form_set_error($field['field_name'] .']['. $delta .'][iii_record', t('%name : No III record with the ID %id could be located.', array('%name' => t($field['widget']['label']), '%id' => $item['iii_record'])));
+          if (!empty($item['value']) && !shrew_record_check($item['value'])) {
+            form_set_error($field['field_name'] .']['. $delta .'][value', t('%name : No III record with the ID %id could be located.', array('%name' => t($field['widget']['label']), '%id' => $item['value'])));
           }
         }
       } 
@@ -97,7 +97,7 @@ function iii_record_field($op, &$node, $field, &$items, $teaser, $page) {
  * Implementation of hook_content_is_empty().
  */
 function iii_record_content_is_empty($item, $field) {
-  if (empty($item['iii_record'])) {
+  if (empty($item['value'])) {
     return TRUE;
   }
   return FALSE;
@@ -138,8 +138,8 @@ function iii_record_field_formatter_info() {
  */
 function theme_iii_record_formatter_default($element) {
   // Display a normal link if both title and URL are available.
-  if ($iii_record = $element['#item']['iii_record']) {
-    $url = shrew_get_webpac_location().'/record='.$iii_record;
+  if ($iii_record = $element['#item']['value']) {
+    $url = shrew_get_webpac_location() .'/record='. $iii_record;
     return l("Link to catalog record", $url, array());
   }
 }
@@ -149,8 +149,8 @@ function theme_iii_record_formatter_default($element) {
  * Theme function for 'url' iii_record field formatter
  */
 function theme_iii_record_formatter_url($element) {
-  if ($iii_record = $element['#item']['iii_record']) {
-    $url = shrew_get_webpac_location().'/record='.$iii_record;
+  if ($iii_record = $element['#item']['value']) {
+    $url = shrew_get_webpac_location() .'/record='. $iii_record;
     return l($url, $url, array());
   }
 }
@@ -160,8 +160,8 @@ function theme_iii_record_formatter_url($element) {
  * Theme function for 'plain' iii_record field formatter
  */
 function theme_iii_record_formatter_plain($element) {
-  if ($iii_record = $element['#item']['iii_record']) {
-    return '<span class="iii_record_number">'.$iii_record.'</span>';
+  if ($iii_record = $element['#item']['value']) {
+    return '<span class="iii_record_number">'. $iii_record .'</span>';
   }
 }
 
@@ -170,8 +170,8 @@ function theme_iii_record_formatter_plain($element) {
  * Theme function for 'title' iii_record field formatter
  */
 function theme_iii_record_formatter_title($element) {
-  if ($iii_record = $element['#item']['iii_record']) {
-    $url = shrew_get_webpac_location().'/record='.$iii_record;
+  if ($iii_record = $element['#item']['value']) {
+    $url = shrew_get_webpac_location() .'/record='. $iii_record;
     $titles = shrew_record_title($iii_record);
     return l($titles[$iii_record], $url, array());
   }
@@ -303,8 +303,8 @@ function iii_record_text_validate($element, &$form_state) {
 function theme_iii_record_text($element) {
   // drupal_add_css(drupal_get_path('module', 'iii_record') .'/iii_record.css', 'module', 'all', FALSE);
   $output = $element['#children'];
-  // if (!empty($element['#value']) && !empty($element['#value']['iii_record'])) {
-  //   $iii_record = $element['#value']['iii_record'];
+  // if (!empty($element['#value']) && !empty($element['#value']['value'])) {
+  //   $iii_record = $element['#value']['value'];
   //   if ($data = amazon_item_lookup(array($iii_record))) {
   //     $output .= '<p class="iii_record-edit-title">'. check_plain($data[$iii_record]['title']) .'</p>';
   //   }
