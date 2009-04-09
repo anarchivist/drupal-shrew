@@ -3,4 +3,4 @@ name = Shrew
 description = Integrates the Shrew library for interacting with Innovative Interfaces integrated library systems and online catalogs.
 core = 6.x
 
-version = "6.x-1.x-dev"
+version = "6.x-0.1"
