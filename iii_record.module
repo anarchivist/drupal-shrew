@@ -110,7 +110,7 @@ function iii_record_content_is_empty($item, $field) {
 function iii_record_field_formatter_info() {
   return array(
     'default' => array(
-      'label' => t('Link with "Link to catalog record" text'),
+      'label' => t('Link with "View catalog record" text'),
       'field types' => array('iii_record'),
       'multiple values' => CONTENT_HANDLE_CORE,
     ),
@@ -140,7 +140,8 @@ function theme_iii_record_formatter_default($element) {
   // Display a normal link if both title and URL are available.
   if ($iii_record = $element['#item']['value']) {
     $url = shrew_get_webpac_location() .'/record='. $iii_record;
-    return l("Link to catalog record", $url, array());
+    // TO DO: Make this editable through field admin
+    return l("View catalog record", $url, array());
   }
 }
 
