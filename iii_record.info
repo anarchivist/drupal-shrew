@@ -8,4 +8,4 @@ package = CCK
 
 requirements[] = shrew
 requirements[] = content
-version = "6.x-0.1"
+version = "6.x-0.2"

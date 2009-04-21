@@ -142,7 +142,7 @@ function shrew_record_parse($record) {
  */
 function shrew_field_format($field, $exclude = array('2')) {
     if ($field->isControlField()) {
-        return $field->getData();
+        $out = $field->getData();
     }
     else {
         $out = '';
@@ -155,8 +155,9 @@ function shrew_field_format($field, $exclude = array('2')) {
                 $out .= ' '. $subfield->getData();
             }
         }
-        return trim($out);
+        $out = trim($out);
     }
+    return $out;
 }
 
 

@@ -940,7 +940,7 @@ class InnopacWeb
 			// assign data and clean it up
 
 			$strData = substr( $strTag, 7 );
-			$strData = utf8_encode( $strData );
+			$strData = mb_convert_encoding( $strData, "UTF-8" );
 			$strData = $this->escapeXml( $strData );
 			$strData = trim( $strData );
 			
