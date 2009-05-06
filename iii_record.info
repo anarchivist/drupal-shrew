@@ -6,6 +6,6 @@ core = 6.x
 
 package = CCK
 
-requirements[] = shrew
-requirements[] = content
+dependencies[] = shrew
+dependencies[] = content
 version = "6.x-0.2"
