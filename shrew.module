@@ -260,6 +260,33 @@ function shrew_record_title($id, $webpac_location = FALSE) {
   return $out;
 }
 
+/**
+  * Calculate the check digit from a record number not containing its type
+  * prefix or a check digit. The algorithm to calculate check digits is found
+  * at the following URL (sign-in required):
+  * http://csdirect.iii.com/manual/rmil_records_numbers.html
+  *
+  * @param string $recnum
+  *   record number without type prefix
+  * 
+  * @return string
+  */
+function shrew_calc_checkdigit($recnum) {
+  $seq = array_reverse(str_split($recnum));
+  $sum = 0;
+  $multiplier = 2;
+  foreach ($seq as $digit) {
+    $digit *= $multiplier;
+    $sum += $digit;
+    $multiplier++;
+  }
+  $check = $sum % 11;
+  if ($check == 10) {
+    return 'x';
+  } else {
+    return strval($check);
+  }
+}
 
 /**
  * Subclassing InnopacWeb_Record since we are using shrew_get() to return
