@@ -289,6 +289,37 @@ function shrew_calc_checkdigit($recnum) {
 }
 
 /**
+ * Generate a link to an electronic resource using WebPAC's Web Access
+ * Management (WAM) proxy.
+ *
+ * @param string $url
+ *   URL to route to proxy
+ * @param bool $strip_www
+ *   Strip "www." from webpac location
+ * @param string $webpac_location
+ *   URL to webpac location
+ * @return string
+ *   WAM-wrapped version of URL
+ */
+function shrew_wam_url($url, $strip_www = TRUE, $webpac_location = FALSE) {
+  if ($webpac_location == FALSE) {
+    $webpac_location = shrew_get_webpac_location();
+  }
+  $url_array = parse_url($url);
+  $webpac_array = parse_url($webpac_location);
+  if (!isset($url_array['port'])) {
+    $url_array['port'] = 0;
+  }
+  if ($strip_www && (substr($webpac_array['host'], 0, 4) == 'www.')) {
+    $webpac_array['host'] = substr($webpac_array['host'], 4);
+  }
+  $proxied_url = $url_array['scheme'] .'://'. $url_array['port'] .'-'.
+    $url_array['host'] .'.'. $webpac_array['host']. $url_array['path'];
+  $proxied_url .= isset($url_array['query']) ? '?'. $url_array['query'] : '';
+  return $proxied_url;
+}
+
+/**
  * Subclassing InnopacWeb_Record since we are using shrew_get() to return
  * a slightly different object; shrewRecord::bibliographicRecord is a
  * File_MARC_Record, not a DOMDocument
