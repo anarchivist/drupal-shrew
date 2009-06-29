@@ -917,8 +917,7 @@ class InnopacWeb
 		
 		// remove break-tabs for easier parsing
 		
-    $strMarc = str_replace( " \n       ", " ", $strMarc );
-		$strMarc = str_replace( "\n       ", " ", $strMarc );
+    $strMarc = str_replace( "\n       ", "", $strMarc );
 		$strMarc = trim( $strMarc );
 		
 		// assign the marc values to the array based on Unix LF as delimiter
