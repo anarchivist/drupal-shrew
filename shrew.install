@@ -23,17 +23,23 @@ function shrew_requirements($phase) {
   switch ($phase) {
     case 'runtime':
       $requirements['shrew'] = array('title' => $t('shrew library'));
-
+      $error = $t('The <a href="@url" target="_blank">Shrew</a> library or the <a href="@marc" target="_blank">File_MARC</a> PEAR module was not found.', array('@url' => 'http://code.google.com/p/shrew/', '@marc' => 'http://pear.php.net/package/File_MARC/'));
       $library = shrew_get_library();
       if (file_exists($library)) {
-        shrew_require();
-        $requirements['shrew']['severity'] = REQUIREMENT_OK;
-      }
-
-      else {
-        $requirements['shrew']['description'] = $t('The <a href="@url" target="_blank">Shrew</a> library or the <a href="@marc" target="_blank">File_MARC</a> PEAR module was not found.', array('@url' => 'http://code.google.com/p/shrew/', '@marc' => 'http://pear.php.net/package/File_MARC/'));
+        try {
+          shrew_require();
+          $requirements['shrew']['severity'] = REQUIREMENT_OK;
+          $requirements['shrew']['description'] = $t('The Shrew library and the File_MARC PEAR module are both installed.');
+          $requirements['shrew']['value'] = $t('Installed.');
+        } catch (Exception $e) {
+          $requirements['shrew']['severity'] = REQUIREMENT_WARNING;
+          $requirements['shrew']['value'] = $t('Not installed.');
+          $requirements['shrew']['description'] = $error;
+        }
+      } else {
         $requirements['shrew']['severity'] = REQUIREMENT_WARNING;
-        $requirements['shrew']['value'] =  $t('Not installed.');
+        $requirements['shrew']['value'] = $t('Not installed.');
+        $requirements['shrew']['description'] = $error;
       }
   }
   return $requirements;

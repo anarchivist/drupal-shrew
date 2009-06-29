@@ -83,11 +83,11 @@ function shrew_require($once = TRUE) {
   $library = shrew_get_library();
 
   if ($once) {
-    require_once './'. $library;
+    require_once $library;
     require_once 'File/MARCXML.php';
   }
   else {
-    require './'. $library;
+    require $library;
     require 'File/MARCXML.php';
   }
 }
