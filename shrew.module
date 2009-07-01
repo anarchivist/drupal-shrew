@@ -34,6 +34,14 @@ function shrew_menu() {
     'page arguments' => array('shrew_admin_settings'),
     'access arguments' => array('administer site configuration'),
   );
+  $items['shrew/%shrew_record/%shrew_format'] = array(
+    'title' => 'Return XML for a given catalog record',
+    'description' => 'Return a catalog record as MARCXML or MODS',
+    'page callback' => 'shrew_xml_render',
+    'page arguments' => array(1, 2),
+    'access arguments' => array('access shrew xml'),
+    'type' => MENU_CALLBACK,
+  );
   return $items;
 }
 
@@ -114,23 +122,6 @@ function shrew_init($webpac_location = FALSE) {
 
 
 /**
- * Parses a single MARCXML record stored as a string into a File_MARC_Record
- * object
- *
- * @param string $record
- *   string Single MARCXML record
- *
- * @return
- *   File_MARC_Record
- */
-function shrew_record_parse($record) {
-  $obj = new File_MARCXML($record, 2);
-  $mxrecord = $obj->next();
-  return $mxrecord;
-}
-
-
-/**
  * Pretty print a MARC_Field object without tags, indicators, etc.
  *
  * @param File_MARC_Field $field
@@ -181,6 +172,11 @@ function shrew_field_get($record = NULL, $tag = NULL, $pcre = FALSE) {
   }
   return $out;
 }
+
+
+// function shrew_format_load($format) {
+//   return $format;
+// }
 
 
 /**
@@ -235,6 +231,36 @@ function shrew_record_get($id, $webpac_location = FALSE) {
     }
   }
   return $out;
+}
+
+
+/**
+ * Load the XML for a given record
+ * 
+ * @param string $id 
+ *   record id (bnumber)
+ * @return string
+ */
+function shrew_record_load($id) {
+  $rsp = shrew_record_get($id);
+  return $rsp[$id]->bibliographicRecord->toXML();
+}
+
+
+/**
+ * Parses a single MARCXML record stored as a string into a File_MARC_Record
+ * object
+ *
+ * @param string $record
+ *   string Single MARCXML record
+ *
+ * @return
+ *   File_MARC_Record
+ */
+function shrew_record_parse($record) {
+  $obj = new File_MARCXML($record, 2);
+  $mxrecord = $obj->next();
+  return $mxrecord;
 }
 
 
@@ -317,6 +343,41 @@ function shrew_wam_url($url, $strip_www = TRUE, $webpac_location = FALSE) {
     $url_array['host'] .'.'. $webpac_array['host']. $url_array['path'];
   $proxied_url .= isset($url_array['query']) ? '?'. $url_array['query'] : '';
   return $proxied_url;
+}
+
+
+/**
+ * Return the XML of a catalog record in different formats
+ * 
+ * @param string $marcxml
+ *   record data as MARCXML
+ * @param string $format
+ *   format to transform to
+ * @return string
+ */
+function shrew_xml($marcxml, $format = 'marcxml') {
+  switch ($format) {
+    case 'marcxml':
+      return $marcxml;
+      break;
+    
+    case 'oai_dc':
+      $xslt = new XSLTProcessor();
+      $xsl = new DOMDocument;
+      $xsl->load(drupal_get_path('module', 'shrew') 
+        .'/xslt/MARC21slim2OAIDC.xsl');
+      $xslt->importStyleSheet($xsl);
+      $xml = new DOMDocument;
+      $xml->loadXML($marcxml);
+      return $xslt->transformToXML($xml);
+      break;
+  }
+}
+
+
+function shrew_xml_render($marcxml, $format) {
+  drupal_set_header('Content-Type: application/xml; charset=utf-8');
+  print shrew_xml($marcxml, $format);
 }
 
 /**
