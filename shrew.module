@@ -122,8 +122,8 @@ function shrew_init($webpac_location = FALSE) {
 
   if ($webpac_location == FALSE) {
     $webpac_location = shrew_get_webpac_location();
-  } 
-  
+  }
+
   $shrew = new InnopacWeb($webpac_location);
   return $shrew;
 }
@@ -244,8 +244,8 @@ function shrew_record_get($id, $webpac_location = FALSE) {
 
 /**
  * Load the XML for a given record
- * 
- * @param string $id 
+ *
+ * @param string $id
  *   record id (bnumber)
  * @return string
  */
@@ -317,7 +317,8 @@ function shrew_calc_checkdigit($recnum) {
   $check = $sum % 11;
   if ($check == 10) {
     return 'x';
-  } else {
+  }
+  else {
     return strval($check);
   }
 }
@@ -348,7 +349,7 @@ function shrew_wam_url($url, $strip_www = TRUE, $webpac_location = FALSE) {
     $webpac_array['host'] = substr($webpac_array['host'], 4);
   }
   $proxied_url = $url_array['scheme'] .'://'. $url_array['port'] .'-'.
-    $url_array['host'] .'.'. $webpac_array['host']. $url_array['path'];
+    $url_array['host'] .'.'. $webpac_array['host'] . $url_array['path'];
   $proxied_url .= isset($url_array['query']) ? '?'. $url_array['query'] : '';
   return $proxied_url;
 }
@@ -356,7 +357,7 @@ function shrew_wam_url($url, $strip_www = TRUE, $webpac_location = FALSE) {
 
 /**
  * Return the XML of a catalog record in different formats
- * 
+ *
  * @param string $marcxml
  *   record data as MARCXML
  * @param string $format
@@ -368,12 +369,11 @@ function shrew_xml($marcxml, $format = 'marcxml') {
     case 'marcxml':
       return $marcxml;
       break;
-      
+
     case 'mods':
       $xslt = new XSLTProcessor();
       $xsl = new DOMDocument;
-      $xsl->load(drupal_get_path('module', 'shrew') 
-        .'/xslt/MARC21slim2MODS3-3.xsl');
+      $xsl->load(drupal_get_path('module', 'shrew') .'/xslt/MARC21slim2MODS3-3.xsl');
       $xslt->importStyleSheet($xsl);
       $xml = new DOMDocument;
       $xml->loadXML($marcxml);
@@ -400,7 +400,7 @@ function shrew_xml_render($marcxml, $format) {
     case 'marcxml':
       $ctype = 'application/marcxml+xml';
       break;
-      
+
     case 'mods':
       $ctype = 'application/mods+xml';
       break;

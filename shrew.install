@@ -36,7 +36,8 @@ function shrew_requirements($phase) {
           $requirements['shrew']['value'] = $t('Not installed.');
           $requirements['shrew']['description'] = $error;
         }
-      } else {
+      }
+      else {
         $requirements['shrew']['severity'] = REQUIREMENT_WARNING;
         $requirements['shrew']['value'] = $t('Not installed.');
         $requirements['shrew']['description'] = $error;
