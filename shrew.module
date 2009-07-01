@@ -36,13 +36,21 @@ function shrew_menu() {
   );
   $items['shrew/%shrew_record/%shrew_format'] = array(
     'title' => 'Return XML for a given catalog record',
-    'description' => 'Return a catalog record as MARCXML or MODS',
+    'description' => 'Return a catalog record in a variety of XML formats',
     'page callback' => 'shrew_xml_render',
     'page arguments' => array(1, 2),
     'access arguments' => array('access shrew xml'),
     'type' => MENU_CALLBACK,
   );
   return $items;
+}
+
+
+/**
+ * Implementation of hook_perm().
+ */
+function shrew_perm() {
+  return array('access shrew xml');
 }
 
 
@@ -174,9 +182,9 @@ function shrew_field_get($record = NULL, $tag = NULL, $pcre = FALSE) {
 }
 
 
-// function shrew_format_load($format) {
-//   return $format;
-// }
+function shrew_format_load($format) {
+  return $format;
+}
 
 
 /**
@@ -360,6 +368,17 @@ function shrew_xml($marcxml, $format = 'marcxml') {
     case 'marcxml':
       return $marcxml;
       break;
+      
+    case 'mods':
+      $xslt = new XSLTProcessor();
+      $xsl = new DOMDocument;
+      $xsl->load(drupal_get_path('module', 'shrew') 
+        .'/xslt/MARC21slim2MODS3-3.xsl');
+      $xslt->importStyleSheet($xsl);
+      $xml = new DOMDocument;
+      $xml->loadXML($marcxml);
+      return $xslt->transformToXML($xml);
+      break;
     
     case 'oai_dc':
       $xslt = new XSLTProcessor();
@@ -376,6 +395,16 @@ function shrew_xml($marcxml, $format = 'marcxml') {
 
 
 function shrew_xml_render($marcxml, $format) {
+  $ctype = 'application/xml';
+  switch ($format) {
+    case 'marcxml':
+      $ctype = 'application/marcxml+xml';
+      break;
+      
+    case 'mods':
+      $ctype = 'application/mods+xml';
+      break;
+  }
   drupal_set_header('Content-Type: application/xml; charset=utf-8');
   print shrew_xml($marcxml, $format);
 }
