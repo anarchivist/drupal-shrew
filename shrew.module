@@ -1,14 +1,19 @@
 <?php
 // $Id$
 
-require_once drupal_get_path('module', 'shrew') .'/lib/InnopacWeb.php';
-require_once('File/MARCXML.php');
-
 /**
  * @file
+ * A Drupal module to harvest and search records from an III WebPac instance, using David Walker's Shrew PHP module.
+ *
+ * Requires the File_MARC PEAR extension.
  *
  * @see http://code.google.com/p/shrew/
+ * @see File_MARC
+ * @see http://pear.php.net/package/File_MARC/
  */
+
+require_once drupal_get_path('module', 'shrew') .'/lib/InnopacWeb.php';
+require_once('File/MARCXML.php');
 
 /**
  * Implementation of hook_help().
@@ -54,6 +59,9 @@ function shrew_perm() {
 }
 
 
+/**
+ * Implementation of hook_admin_settings().
+ */
 function shrew_admin_settings() {
   $form['shrew_webpac_location'] = array(
     '#type' => 'textfield',
@@ -66,14 +74,19 @@ function shrew_admin_settings() {
   return system_settings_form($form);
 }
 
-
+/**
+ * Get the path to the Shrew library.
+ *
+ * @return string
+ *   Full path to Shrew's InnopacWeb.php.
+ */
 function shrew_get_library() {
   return drupal_get_path('module', 'shrew') .'/lib/InnopacWeb.php';
 }
 
 
 /**
- * Setter method for webpac location
+ * Setter method for webpac location.
  *
  * @param $location
  *  URI for Webpac instance
@@ -84,7 +97,7 @@ function shrew_set_webpac_location($location) {
 
 
 /**
- * Getter method for webpac location
+ * Getter method for webpac location.
  *
  * @return string
  *  URI for III Webpac instance
@@ -94,6 +107,12 @@ function shrew_get_webpac_location() {
 }
 
 
+/**
+ * Ensure classes are properly loaded.
+ *
+ * @param $once
+ *   bool to determine if PHP's require or require_once should be called
+ */
 function shrew_require($once = TRUE) {
 
   $library = shrew_get_library();
@@ -115,6 +134,9 @@ function shrew_require($once = TRUE) {
  * @param $webpac_location
  *   URI for III Webpac instance
  * @return InnopacWeb
+ *   Returns a new instance of the InnopacWeb class from the shrew library
+ *
+ * @see InnopacWeb
  */
 function shrew_init($webpac_location = FALSE) {
   static $shrew = NULL;
@@ -130,7 +152,7 @@ function shrew_init($webpac_location = FALSE) {
 
 
 /**
- * Pretty print a MARC_Field object without tags, indicators, etc.
+ * Pretty print a File_MARC_Field object without tags, indicators, etc.
  *
  * @param File_MARC_Field $field
  *   File_MARC_Field object to format
@@ -138,6 +160,8 @@ function shrew_init($webpac_location = FALSE) {
  *   array of subfields to exclude
  * @return string
  *  the formatted field data
+ *
+ * @see File_MARC_Field
  */
 function shrew_field_format($field, $exclude = array('2')) {
     if ($field->isControlField()) {
@@ -182,6 +206,9 @@ function shrew_field_get($record = NULL, $tag = NULL, $pcre = FALSE) {
 }
 
 
+/**
+ * Apparently this function does nothing. It was probably a wrapper function that never got completed.
+ */
 function shrew_format_load($format) {
   return $format;
 }
@@ -250,8 +277,12 @@ function shrew_record_get($id, $webpac_location = FALSE) {
  * @return string
  */
 function shrew_record_load($id) {
-  $rsp = shrew_record_get($id);
-  return $rsp[$id]->bibliographicRecord->toXML();
+  if (shrew_record_check($id)) {
+    $rsp = shrew_record_get($id);
+    return $rsp[$id]->bibliographicRecord->toXML();
+  } else {
+    return "<error><description>no such record</description><recnum>$id</recnum></error>";
+  }
 }
 
 
@@ -295,15 +326,17 @@ function shrew_record_title($id, $webpac_location = FALSE) {
 }
 
 /**
-  * Calculate the check digit from a record number not containing its type
-  * prefix or a check digit. The algorithm to calculate check digits is found
-  * at the following URL (sign-in required):
-  * http://csdirect.iii.com/manual/rmil_records_numbers.html
+  * Calculate the check digit from a record number not containing its type  prefix or a check digit.
+  *
+  * The algorithm is taken from the see link below.
   *
   * @param string $recnum
   *   record number without type prefix
-  * 
+  *
   * @return string
+  *   string specifying checkdigit
+  *
+  * @see http://csdirect.iii.com/manual/rmil_records_numbers.html
   */
 function shrew_calc_checkdigit($recnum) {
   $seq = array_reverse(str_split($recnum));
@@ -324,8 +357,9 @@ function shrew_calc_checkdigit($recnum) {
 }
 
 /**
- * Generate a link to an electronic resource using WebPAC's Web Access
- * Management (WAM) proxy.
+ * Generate a link to an electronic resource using WebPAC's Web Access Management (WAM) proxy.
+ *
+ * This is untested because of delays in WAM deployment.
  *
  * @param string $url
  *   URL to route to proxy
@@ -367,13 +401,15 @@ function shrew_wam_url($url, $strip_www = TRUE, $webpac_location = FALSE) {
 function shrew_xml($marcxml, $format = 'marcxml') {
   switch ($format) {
     case 'marcxml':
+    case 'error':
       return $marcxml;
       break;
 
     case 'mods':
       $xslt = new XSLTProcessor();
       $xsl = new DOMDocument;
-      $xsl->load(drupal_get_path('module', 'shrew') .'/xslt/MARC21slim2MODS3-3.xsl');
+      $xsl->load(drupal_get_path('module', 'shrew')
+        .'/xslt/MARC21slim2MODS3-3.xsl');
       $xslt->importStyleSheet($xsl);
       $xml = new DOMDocument;
       $xml->loadXML($marcxml);
@@ -393,9 +429,20 @@ function shrew_xml($marcxml, $format = 'marcxml') {
   }
 }
 
-
+/**
+ * Wrapper function for shrew_xml; assists with setting HTTP headers.
+ *
+ * @param $marcxml
+ *   String containing MARCXML extracted from catalog record
+ * @param $format
+ *   String specifying format of expected response
+ */
 function shrew_xml_render($marcxml, $format) {
   $ctype = 'application/xml';
+  // If it can't find the record, set the format handler in advance.
+  if (stristr($marcxml, 'no such record')) {
+    $format = 'error';
+  }
   switch ($format) {
     case 'marcxml':
       $ctype = 'application/marcxml+xml';
@@ -410,8 +457,11 @@ function shrew_xml_render($marcxml, $format) {
 }
 
 /**
- * Subclassing InnopacWeb_Record since we are using shrew_get() to return
- * a slightly different object; shrewRecord::bibliographicRecord is a
- * File_MARC_Record, not a DOMDocument
+ * A subclass of InnopacWeb_Record, since the object is different.
+ *
+ * We are using shrew_get() to return a slightly different object;
+ * shrewRecord::bibliographicRecord is a File_MARC_Record, not a DOMDocument
+ *
+ * @see InnopacWeb_Record
  */
 class shrewRecord extends InnopacWeb_Record {}
