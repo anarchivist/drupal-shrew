@@ -39,7 +39,7 @@ function shrew_menu() {
     'page arguments' => array('shrew_admin_settings'),
     'access arguments' => array('administer site configuration'),
   );
-  $items['shrew/%shrew_record/%shrew_format'] = array(
+  $items['shrew/%shrew_record/%shrew_format.xml'] = array(
     'title' => 'Return XML for a given catalog record',
     'description' => 'Return a catalog record in a variety of XML formats',
     'page callback' => 'shrew_xml_render',
