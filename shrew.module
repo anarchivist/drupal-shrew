@@ -138,7 +138,7 @@ function shrew_require($once = TRUE) {
  *
  * @see InnopacWeb
  */
-function shrew_init($webpac_location = FALSE) {
+function shrew_client($webpac_location = FALSE) {
   static $shrew = NULL;
   shrew_require();
 
@@ -226,7 +226,7 @@ function shrew_format_load($format) {
   * @return boolean
   */
 function shrew_record_check($id, $webpac_location = FALSE) {
-  $shrew = shrew_init($webpac_location);
+  $shrew = shrew_client($webpac_location);
   $url = $shrew->goToBibliographicRequestPage($id);
   $response = file_get_contents($url);
   //$data = $response->data;
@@ -253,7 +253,7 @@ function shrew_record_check($id, $webpac_location = FALSE) {
   * @return array
   */
 function shrew_record_get($id, $webpac_location = FALSE) {
-  $shrew = shrew_init($webpac_location);
+  $shrew = shrew_client($webpac_location);
   $out = array();
   $response = $shrew->getRecords($id);
   if (count($response) > 0) {

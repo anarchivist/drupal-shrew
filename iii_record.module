@@ -302,13 +302,6 @@ function iii_record_text_validate($element, &$form_state) {
 
 
 function theme_iii_record_text($element) {
-  // drupal_add_css(drupal_get_path('module', 'iii_record') .'/iii_record.css', 'module', 'all', FALSE);
   $output = $element['#children'];
-  // if (!empty($element['#value']) && !empty($element['#value']['value'])) {
-  //   $iii_record = $element['#value']['value'];
-  //   if ($data = amazon_item_lookup(array($iii_record))) {
-  //     $output .= '<p class="iii_record-edit-title">'. check_plain($data[$iii_record]['title']) .'</p>';
-  //   }
-  // }
   return $output;
 }
