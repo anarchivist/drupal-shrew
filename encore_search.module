@@ -1,0 +1,23 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * A helper module to pass search requests onto a III Encore OPAC.
+ */
+
+/**
+ * Implementation of hook_search().
+ */
+function encore_search_search($op = 'search', $keywords = null) {
+  switch ($op) {
+    case 'name':
+      return t('Catalog');
+    case 'reset':
+      return;
+    case 'search':
+      $encore_query_url = shrew_get_encore_location()
+        .'/iii/encore/search/C|S'. urlencode($keywords);
+      drupal_goto($encore_query_url);
+  }
+}

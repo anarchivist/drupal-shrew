@@ -70,6 +70,14 @@ function shrew_admin_settings() {
     '#default_value' => variable_get('shrew_webpac_location', ''),
     '#required' => TRUE,
   );
+  
+  $form['shrew_encore_location'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Shrew III Encore location'),
+    '#description' => t('Please provide the location of your Encore instance.'),
+    '#default_value' => variable_get('shrew_encore_location', ''),
+    '#required' => TRUE,
+  );
 
   return system_settings_form($form);
 }
@@ -104,6 +112,28 @@ function shrew_set_webpac_location($location) {
  */
 function shrew_get_webpac_location() {
   return variable_get('shrew_webpac_location', NULL);
+}
+
+
+/**
+ * Setter method for Encore location.
+ *
+ * @param $location
+ *  URI for Encore instance
+ */
+function shrew_set_encore_location($location) {
+  variable_set('shrew_encore_location', $location);
+}
+
+
+/**
+ * Getter method for Encore location.
+ *
+ * @return string
+ *  URI for III Encore instance
+ */
+function shrew_get_encore_location() {
+  return variable_get('shrew_encore_location', NULL);
 }
 
 

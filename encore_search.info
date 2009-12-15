@@ -1,0 +1,11 @@
+; $Id$
+name = Shrew - Encore Search
+description = Helper module to allow searches to be redirected to a III Encore OPAC.
+
+; Required core version (Drupal 6+; no effect in Drupal 5)
+core = 6.x
+
+; Module dependencies (Drupal 6+ style)
+dependencies[] = shrew
+
+version = "6.x-0.9"
