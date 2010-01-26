@@ -8,4 +8,4 @@ core = 6.x
 ; Module dependencies (Drupal 6+ style)
 dependencies[] = shrew
 
-version = "6.x-0.9"
+version = "6.x-0.9.1"
