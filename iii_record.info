@@ -8,4 +8,4 @@ package = CCK
 
 dependencies[] = shrew
 dependencies[] = content
-version = "6.x-0.9.1"
+version = "6.x-0.9.2"

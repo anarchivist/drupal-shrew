@@ -235,6 +235,33 @@ function shrew_field_get($record = NULL, $tag = NULL, $pcre = FALSE) {
   return $out;
 }
 
+/**
+	* Returns all distinct values (i.e. no duplicates) for the MARC field passed in $tag
+	* from the record with id passed as $id
+	* @param string $id
+	*		ID (Bib. number) of the record to be queried
+	*		See shrew_record_get()
+  * @param string $tag
+  *   MARC tag to retrieve
+	*		See shrew_field_get()
+  * @param bool $pcre
+  *   if true, then match as a regular expression
+	*		See shrew_field_get()
+	* @return
+	*		Array of distinct field values
+**/
+function shrew_distinct_field_get($id, $tag, $pcre = FALSE) {
+	$record = shrew_record_get($id);
+  if ($fields = shrew_field_get($record[$id]->bibliographicRecord, $tag, $pcre)) {
+    $field_value_array = array();
+		foreach ($fields as $field_data) {
+      if (!in_array($field_data,$field_value_array)) {
+				$field_value_array[] = $field_data;
+			}
+    }
+  }
+	return $field_value_array;
+}
 
 /**
  * Apparently this function does nothing. It was probably a wrapper function that never got completed.
